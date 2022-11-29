@@ -15,6 +15,7 @@ import numpy as np
 import psutil
 import scipy.sparse as sp
 import spacy
+import re
 
 
 class _KeyphraseVectorizerMixin():
@@ -354,8 +355,8 @@ class _KeyphraseVectorizerMixin():
 
         # extract keyphrases that match the NLTK RegexpParser filter
         keyphrases = []
-        prefix_list = [stop_word + ' ' for stop_word in stop_words_list]
-        suffix_list = [' ' + stop_word for stop_word in stop_words_list]
+        # prefix_list = [stop_word + ' ' for stop_word in stop_words_list]
+        # suffix_list = [' ' + stop_word for stop_word in stop_words_list]
         tree = cp.parse(pos_tuples)
         for subtree in tree.subtrees(filter=lambda tuple: tuple.label() == 'CHUNK'):
             # join candidate keyphrase from single words
@@ -366,19 +367,36 @@ class _KeyphraseVectorizerMixin():
                 keyphrase = keyphrase.lower()
 
             # remove stopword suffixes
-            keyphrase = self._remove_suffixes(keyphrase, suffix_list)
+            # keyphrase = self._remove_suffixes(keyphrase, suffix_list)
 
-            # remove stopword prefixes
-            keyphrase = self._remove_prefixes(keyphrase, prefix_list)
+            # # remove stopword prefixes
+            # keyphrase = self._remove_prefixes(keyphrase, prefix_list)
+
+            # Remove stopwords
+            keyphrase = self._remove_stopwords(keyphrase, stop_words_list)
 
             # remove whitespace from the beginning and end of keyphrases
             keyphrase = keyphrase.strip()
 
-            # do not include single keywords that are actually stopwords
-            if keyphrase.lower() not in stop_words_list:
+            # if keyphrase is not empty after stop word removal we append
+            if keyphrase:
                 keyphrases.append(keyphrase)
 
         # remove potential empty keyphrases
         keyphrases = [keyphrase for keyphrase in keyphrases if keyphrase != '']
 
         return list(set(keyphrases))
+
+    def _remove_stopwords(self, keyphrase: str, stop_words: List[str]) -> str:
+        """Replaces all occurences of stopwords in the keyphrase
+
+        Args:
+            keyphrase (str):
+            stop_words (str):
+
+        Returns:
+            str: clean keyphrase
+        """
+        for stop_word in stop_words:
+            keyphrase = re.sub(f"((^|\ ){stop_word}( |$))+?", " ", keyphrase)
+        return keyphrase
